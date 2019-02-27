@@ -1,0 +1,2 @@
+sciao belo!
+questo era scritto sul file di input

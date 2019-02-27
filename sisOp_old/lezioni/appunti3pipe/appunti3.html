@@ -1,0 +1,107 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+  
+  <title>Appunti Laboratorio Sistemi Operativi, Parte 3</title><meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"></head>
+<body><h2>APPUNTI DI SISTEMI OPERATIVI PER LE ESERCITAZIONI IN LABORATORIO</h2><h2>
+CHIAMATE DI SISTEMA - PARTE 3</h2>
+<h4>****************************************</h4>
+<h4>PIPES<br>
+</h4>
+<h4>****************************************</h4>
+La system call:<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; int pipe(int fildes[2]);<br>
+<br>
+crea una pipe, valorizzando fildes[0] con un file descriptor (indice
+nella tabella dei files aperti) che può essere usato per leggere
+dalla pipe, e fildes[1] con uno che può essere utilizzato per
+scrivere.<br>
+<br>
+L'esempio seguente simula il comportamento dell'interprete dei comandi
+per eseguire:<br><pre>who | sort</pre>
+in cui lo standard output del comando "who" (quali utenti sono
+collegati) diventa lo standard input del comando "sort" (ordina le
+righe di un file testo).<br>
+Per vedere qualcosa di significativo da parte di "sort", collegarsi
+(es. "ssh lab05") su una macchina su cui sono collegati altri utenti.<br>
+<br>
+<pre>::::::::::::::<br>pipes.c<br>::::::::::::::<br>#include &lt;stdio.h&gt;<br>#include &lt;unistd.h&gt;<br>#include &lt;sys/types.h&gt;<br>main()<br>{<br>  int pipefd[2];<br><br>  pipe (pipefd);<br><br>  if (fork() == (pid_t)0) {<br>	/* primo figlio esegue sort prendendo l'input da pipefd[0] */<br>	dup2(pipefd[0],0); <br>	close(pipefd[0]);<br>	close(pipefd[1]);<br>	execlp("sort","sort",NULL);<br>	perror("exec sort fallita");<br>  }<br>  else if (fork() == (pid_t)0) {<br>	/* secondo figlio esegue who mandando l'output su pipefd[1] */<br>	dup2(pipefd[1],1);<br>	close(pipefd[0]);<br>	close(pipefd[1]);<br>	execlp("who","who",NULL);<br>	perror("exec who fallita");<br>       }<br>       else<br>       { /* processo padre chiude entrambi gli estremi della pipe <br>	    e attende i figli */<br>         close(pipefd[0]);<br>	 close(pipefd[1]);<br>	 wait(NULL);<br>	 wait(NULL);<br>       }	<br>}<br>::::::::::::::<br><br></pre>
+
+<br><span style="font-weight: bold;">
+ESERCIZIO 3.0</span>: Leggere ulteriori informazioni sulle pipe
+dando il comando "man 7 pipe".<br>
+
+<br><span style="font-weight: bold;">
+ESERCIZIO 3.1. &nbsp;</span>Realizzare
+analogo programma che riproduce, invece del comando "who | sort", il
+comando "head -20 pipes.c | tail -10" che produce in output le righe da
+11 a 20 del file "pipes.c", infatti "head -20" produce le prime 20
+righe del file passato come argomento, e "tail -10" produce le ultime
+10 righe del suo standard input.<br><br>N.B. un motivo per cui ci sono le varie "close"è questo:
+è buona norma chiudere i file descriptor non utilizzati da un
+processo, per non occupare inutilmente elementi della tabella dei file
+aperti. <br>
+Inoltre, la chiusura della pipe in scrittura da parte dei processi che
+non la usano per scrivere (padre e primo figlio in questo caso)
+può essere essenziale per la terminazione del processo che legge
+dalla pipe: infatti "sort" continua a leggere finché non trova
+EOF (e peraltro non inizia a scrivere nulla in output finché non
+legge l'ultima riga, che potrebbe essere la prima da stampare).<br>
+L'EOF si ottiene su una pipe quando non ci sono più processi
+che hanno la pipe aperta in scrittura (in questo caso, quando il
+processo
+che esegue "who" termina).<br>
+<br><span style="font-weight: bold;">
+ESERCIZIO 3.2</span>: verificare che cosa accade se nel padre la
+close(pipefd[1]) viene tolta oppure messa dopo le wait.<br>
+<br>
+La creazione della pipe avviene a livello delle system calls; per
+leggere e scrivere sulla pipe, bisognerebbe usare le chiamate di
+sistema read e write, in qualche caso scomode da usare direttamente.<br>
+Tuttavia una pipe aperta con "pipe" può essere usata per
+scrivere e leggere con le funzioni di libreria:<br>
+<ul>
+  <li> se dopo aver aperto la pipe si usa la f. di libreria fdopen che
+"trasforma" una apertura a livello di system calls in una apertura a
+livello di f. di libreria, in cui viene allocata la struttura di tipo
+FILE, contenente ad esempio il buffer utilizzato per risparmiare il
+numero di chiamate di sistema</li>
+  <li>se, come nell'esempio, il processo con opportune "dup" ha alcuni
+dei files standard associati a una pipe. In questo caso si sfruttano le
+strutture "FILE" della libreria già allocate per la gestione dei
+3 file standard . Il processo può quindi chiamare printf, scanf,
+getchar, putchar e queste daranno luogo (almeno in qualche caso, quando
+non
+sfruttano la bufferizzazione) a chiamate di read e write sui
+descrittori
+0 e 1 che possono essere stati associati alla pipe con le dup. In
+particolare
+se il processo fa exec di un programma; tale programma legge dal suo
+standard
+input e scrive sul suo standard output e funziona indipendentemente dal
+fatto
+che essi siano associati al terminale, a un file su disco o a una pipe.
+I
+due comandi who e sort dell'esempio presumibilmente sono stati scritti
+in
+C utilizzando le funzioni di libreria per l'I/O.</li>
+</ul>
+Le pipes possono essere usate anche per comunicazioni "uno a molti",
+"molti a uno", "molti a molti". Si ha un comportamento
+nondeterministico del tipo "produttori e consumatori": se diversi
+processi scrivono sulla stessa pipe, nel flusso di dati risultante
+l'output dei diversi processi viene
+intercalato a seconda dell'effettivo ordine delle chiamate di sistema
+"write"
+sulla pipe da parte dei diversi processi; analogamente, se diversi
+processi
+leggono dalla stessa pipe, il flusso di dati viene consumato in parte
+da
+un processo, in parte dall'altro etc. a seconda di quando occorrono
+effettivamente
+le chiamate di sistema "read" e di quanti dati sono presenti nella pipe
+nel
+momento in cui occorrono.<br>
+<br>
+<br>
+</body></html>

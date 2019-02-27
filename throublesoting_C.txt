@@ -1,0 +1,50 @@
+    memset va usata per pulire tutta la stringa o struttura. Ad esempio, nel caso di pulizia del buffer, come ultimo parametro specificare sempre MAXLINE
+
+        memset(buff, '\0', MAXLINE);
+
+    La write deve specificare il numero esatto di byte che vuole scrivere, quindi come ultimo parametro non e' giusto specificare MAXLINE
+    La scanf non va bene se devo leggere più parole
+    La fgets non ha bisogno del "tappo" perchè legge e memorizza anche lo '\n'.
+    Se si usa la fgets è bene eliminare tutte le scanf (e quindi leggere tutto l'input usando solo la fgets)
+        Questo perchè se si chiede in input un valore intero ("4" ad esempio) con la scanf leggera "4" ma '\n' non è parte dell'intero, quindi la scanf lo lascia nello stream. Una successiva operazione di lettura otterrà '\n'. Attraverso l'uso di sole fgets, la cui lettura include sempre gli '\n' si evita il problema appena descritto, oltre ad avere già il valore numerico in formato stringa e quindi pronto ad essere inviato sul socket.
+    prima di usare le strutture sockadd_in, pulirle con memset
+    prima di ogni read del socket, meglio pulire la struttura con memset
+    usare la readline quando possibile
+    usare di conseguenza la writen
+    preferibilmente, far chiudere la connessione al server
+    dopo ogni invio di messaggi, mettere sempre una risposta di dati ricevuti con successo o di errore (mai fare più write consecutive senza sapere cosa è successo dall'altra parte). Di conseguenza non ci devono essere due read consecutive.
+    al fine di migliorare la compatibilità fra i vari codici dei vari studenti, fare in modo che le risposte del server/client siano sempre del tipo
+        "ACK+stringa" in caso successo
+        "NACK+stringa" in caso di errore
+    dal lato server assicurarsi che read/write siano fatte sul socket restituito dalla accept e non da quello iniziale di listening
+    se si usa telnet con client TCP, ricordarsi che la lettura di una stringa da riga di comando verra' inviata al server con i due caratteri finali uguale a "\r\n"
+    Come posso capire se su una macchina su una data porta c'e' un server TCP attivo?
+
+    Il metodo più rapido per vedere se c'è un server TCP su una macchina consiste nell'usare il comando telnet.
+
+    Da terminale digitare:
+    telnet <IP del server> <porta>
+
+    Se il comando non restituisce nessun messaggio di errore, allora esiste un server in attesa di connessioni su quella porta.
+
+    Come vedo l'indirizzo IP/DNS/Gateway della macchina?
+
+    In ambiente unix
+    /sbin/ifconfig
+
+    In ambiente windows
+    ipconfig /all
+
+    Il programma si blocca e non esegue le "printf"
+
+    Per essere sicuri che le "printf" vengano visualizzate a video, occorre ricordarsi di mettere il carattere '\n' oppure di eseguire un fflush(stdout) subito dopo.
+
+    Riassumendo:
+
+    - sconsigliato -> printf("prova");
+
+    - consiglio 1 -> printf("prova\n");
+
+    - consiglio 2 -> printf("prova\n");
+                           fflush(stdout);
+
